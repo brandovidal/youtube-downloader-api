@@ -1,0 +1,52 @@
+<!doctype html>
+<title>Youtube Download API</title>
+<h1>Convertidor de Youtube</h1>
+
+<style>
+body, html {
+	color: #fff;
+	height: 100%;
+	text-align: center;
+	display: grid;
+	justify-content: center;
+	align-content: center;
+	background-color: #8166cc;
+}
+html {
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+section {
+	background: linear-gradient(#bfb2e6, #5e3db8);
+	padding: 20px;
+}
+section img {
+	max-width: 500px;
+}
+section p, section h3, section h4 {
+	margin-bottom: 5px;
+}
+section a {
+	display: block;
+	margin-top: 30px;
+	text-decoration: none;
+	padding: 10px 15px;
+	background-color: #37246b;
+	color: #fff;
+	border-radius: 5px;
+}
+
+</style>
+
+{% if title and filename and directory and thumbnail_url and time %}
+<section>
+    <img src="{{ thumbnail_url }}" title="{{ title }}"/>
+    <h3>{{ title }}</h3>
+    <h4>{{ author }}</h4>
+    <p>{{ time }}</p>
+    <a href="{{ url_for('.download_file', directory=directory, filename=filename) }}" target="_blank"
+       rel="noopener noreferrer">Download</a>
+</section>
+{% endif %}

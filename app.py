@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory, render_template
 from pytube import YouTube
 
 app = Flask(__name__)
@@ -11,9 +11,14 @@ app = Flask(__name__)
 # Class
 # -------------------------------
 class DownloadSong:
-    def __init__(self, filename="", full_path="/"):
+    def __init__(self, author="", title="", filename="", directory="/", path="", thumbnail_url="", time=0):
+        self.author = author
+        self.title = title
         self.filename = filename
-        self.full_path = full_path
+        self.directory = directory
+        self.path = path
+        self.thumbnail_url = thumbnail_url
+        self.time = f"{time} seconds"
 
 
 # -------------------------------
@@ -27,7 +32,7 @@ def get_title_video(name: str):
 
 
 # get song to download
-def get_download_song():
+def convert_youtube_link():
     link = 'https://www.youtube.com/watch?v=Znu024zo0nw'
     yt = YouTube(link)
 
@@ -37,18 +42,26 @@ def get_download_song():
     # Get title of video
     title = get_title_video(yt.title)
 
-    # Get filename
+    # Get thumbnail_url
+    thumbnail_url = yt.thumbnail_url
+
+    # Length of the video
+    time = yt.length
+    author = yt.author
+
+    # Get params
     filename = f"{title}.mp3"
-    output_path = "audio"
+    directory = "audio"
+    full_path = f"{directory}/{filename}"
 
     # Starting download
     print("Downloading...")
-    ys.download(output_path=output_path, filename=filename)
+    ys.download(output_path=directory, filename=filename)
     print("Download completed!!")
 
-    full_path = f"{output_path}/{filename}"
-
-    return DownloadSong(filename, full_path)
+    song = DownloadSong(author=author, title=title, filename=filename, directory=directory, path=full_path,
+                        thumbnail_url=thumbnail_url, time=time)
+    return song
 
 
 # -------------------------------
@@ -57,18 +70,26 @@ def get_download_song():
 @app.get('/')
 def index():
     local_timezone = datetime.utcnow().astimezone()
+    song = convert_youtube_link()
 
-    song = get_download_song()
-    print(song)
-    print(song.filename)
+    return render_template('download.html', author=song.author, title=song.title, filename=song.filename,
+                           directory=song.directory, thumbnail_url=song.thumbnail_url, time=song.time)
 
-    info = {
+
+@app.route('/download?<string:directory>&<string:filename>', methods=['GET', 'POST'])
+def download_file(directory, filename):
+    local_timezone = datetime.utcnow().astimezone()
+    # print(f"directory:  {directory}")
+    # print(f"filename:  {filename}")
+
+    if directory != "" and filename != "":
+        full_path = os.path.join(app.root_path, directory)
+        return send_from_directory(directory=full_path, path=filename, as_attachment=True)
+
+    return jsonify({
         "date": str(local_timezone),
-        "filename": song.filename,
-        "full_path": song.full_path,
-        "version": "0.1",
-    }
-    return jsonify(info)
+        "error": "not exist song"
+    })
 
 
 # Press the green button in the gutter to run the script.
