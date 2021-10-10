@@ -1,5 +1,7 @@
 # youtube-downloader-api
 
+Using Flask, gunicorn, ffmpeg-python and pytube
+
 ### Dependencies 📋
 
 Generate file dependencies
