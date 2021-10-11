@@ -4,9 +4,9 @@ import stat
 from datetime import datetime
 
 import json
-from flask import Flask, jsonify, send_from_directory, request, render_template
-from s3_functions import upload_file, get_urls
-from werkzeug.utils import secure_filename, redirect
+from flask import Flask, jsonify, send_from_directory, request
+from s3_functions import upload_file
+from werkzeug.utils import secure_filename
 from pytube import YouTube
 import ffmpeg
 
@@ -193,11 +193,10 @@ def convert_youtube_link(link, itag):
 @app.get('/')
 def index():
     local_timezone = datetime.utcnow().astimezone()
-    return render_template('index.html')
-    # return jsonify({
-    #     "date": str(local_timezone),
-    #     "version": "1.0"
-    # })
+    return jsonify({
+        "date": str(local_timezone),
+        "version": "1.0"
+    })
 
 
 @app.route('/search', methods=['POST'], strict_slashes=False)
