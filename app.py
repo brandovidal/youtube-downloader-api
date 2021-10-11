@@ -135,6 +135,7 @@ def convert_youtube_link(link, itag):
 
     # Starting download
     if ys_video.type == 'video':
+        ys_audio = yt.streams.get_audio_only()
         filename_audio = f"{title}_audio{extension}"
         filename_video = f"{title}_video{extension}"
 
@@ -144,7 +145,6 @@ def convert_youtube_link(link, itag):
         path_file = os.path.join(VIDEO_FOLDER, secure_filename(filename))
 
         print("Downloading...")
-        ys_audio = yt.streams.get_audio_only()
         ys_audio.download(output_path=CONVERT_FOLDER, filename=filename_audio)
         ys_video.download(output_path=CONVERT_FOLDER, filename=filename_video)
         print("Download completed!!")
@@ -159,13 +159,15 @@ def convert_youtube_link(link, itag):
         print("ffmpeg end ...")
 
         # Save and upload file
-        os.chmod(path_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        print("Save and upload file")
         presigned_url = upload_file(f"videos/{filename}", BUCKET)
+        print(presigned_url)
 
         # Remove file
         os.remove(path_file)
 
         song = DownloadSong(title=title, directory=VIDEO_FOLDER, filename=filename, presigned_url=presigned_url)
+        print(song)
         return song.toJSON()
 
     else:
@@ -177,8 +179,9 @@ def convert_youtube_link(link, itag):
         print("Download completed!!")
 
         # Save and upload file
-        os.chmod(path_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        print("Save and upload file")
         presigned_url = upload_file(f"audios/{filename}", BUCKET)
+        print(presigned_url)
 
         # Remove file
         os.remove(path_file)

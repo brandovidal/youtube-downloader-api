@@ -8,7 +8,7 @@ def upload_file(file_name, bucket):
     presigned_url = ""
 
     try:
-        s3_client.upload_file(file_name, bucket, object_name)
+        response = s3_client.upload_file(file_name, bucket, object_name)
 
         presigned_url = s3_client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': object_name},
                                                          ExpiresIn=100)
