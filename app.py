@@ -150,12 +150,12 @@ def convert_youtube_link(link, itag):
         print("Download completed!!")
 
         # Get video and audio stream
-        video_stream = ffmpeg.input(path_file_audio)
-        audio_stream = ffmpeg.input(path_file_video)
+        video_stream = (ffmpeg.input(path_file_audio))
+        audio_stream = (ffmpeg.input(path_file_video))
 
         # Generate new video with audio
         print("ffmpeg start ...")
-        ffmpeg.output(audio_stream, video_stream, path_file).overwrite_output().run()
+        (ffmpeg.output(audio_stream, video_stream, path_file).overwrite_output().run())
         print("ffmpeg end ...")
 
         # Save and upload file
