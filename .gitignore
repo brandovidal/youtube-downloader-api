@@ -350,6 +350,7 @@ $RECYCLE.BIN/
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm,linux,archlinuxpackages,windows,macos,visualstudiocode
 
 # Generate files
-audio/
-video/
-convert/
+audios/
+videos/
+converts/
+uploads/

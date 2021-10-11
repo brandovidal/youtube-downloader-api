@@ -1,26 +1,32 @@
 import math
 import os
-
-import json
-
+import stat
 from datetime import datetime
 
+import json
+from flask import Flask, jsonify, send_from_directory, request, render_template
+from s3_functions import upload_file, get_urls
+from werkzeug.utils import secure_filename, redirect
+from pytube import YouTube
 import ffmpeg
 
-from flask import Flask, jsonify, send_from_directory, request
-from pytube import YouTube
-
 app = Flask(__name__)
+UPLOAD_FOLDER = "uploads"
+AUDIO_FOLDER = "audios"
+VIDEO_FOLDER = "videos"
+CONVERT_FOLDER = "convert"
+BUCKET = "youtube-downloader-data"
 
 
 # -------------------------------
 # Class
 # -------------------------------
 class DownloadSong:
-    def __init__(self, title="", filename="", directory="/"):
+    def __init__(self, title="", filename="", directory="/", presigned_url=None):
         self.title = title if title is not None else ""
         self.filename = filename
         self.directory = directory
+        self.presigned_url = presigned_url if presigned_url is not None else ""
 
     def fromJSON(self):
         return json.loads(self.toJSON())
@@ -49,10 +55,17 @@ class Stream:
 # -------------------------------
 # Definitions
 # -------------------------------
+
+def get_filename(name: str):
+    filename = name.replace(" ", "_")
+    return filename
+
+
 # remove special caracters from video title
 def get_title_video(name: str):
     disallowed_characters = '\\|,/\\\\:*!¡*¿?<>@+~[]()'
     title_song = name.translate({ord(charecter): None for charecter in disallowed_characters})
+    title_song = get_filename(title_song)
     return " ".join(title_song.split())
 
 
@@ -105,7 +118,6 @@ def search_link_youtube(link=None):
         "streams": youtube_streams,
     }
     print(json_object)
-
     return jsonify(json_object)
 
 
@@ -116,50 +128,62 @@ def convert_youtube_link(link, itag):
 
     # get stream
     ys_video = yt.streams.get_by_itag(itag)
-    ys_audio = ""
+    extension = ".mp4" if ys_video.type == 'video' else ".mp3"
 
-    directory = "audio"
-    extension = ".mp3"
-    if ys_video.type == 'video':
-        directory = "video"
-        extension = ".mp4"
-        ys_audio = yt.streams.get_audio_only()
-
-    # Get path
+    # Get filename
     filename = f"{title}{extension}"
 
     # Starting download
     if ys_video.type == 'video':
-        directory_convert = "convert"
         filename_audio = f"{title}_audio{extension}"
         filename_video = f"{title}_video{extension}"
 
-        path_audio = f"{directory_convert}/{filename_audio}"
-        path_video = f"{directory_convert}/{filename_video}"
-        path = f"{directory}/{filename}"
-        print(path_audio, path_video)
+        # Get path file
+        path_file_audio = os.path.join(CONVERT_FOLDER, secure_filename(filename_audio))
+        path_file_video = os.path.join(CONVERT_FOLDER, secure_filename(filename_video))
+        path_file = os.path.join(VIDEO_FOLDER, secure_filename(filename))
 
         print("Downloading...")
-        ys_audio.download(output_path=directory_convert, filename=filename_audio)
-        ys_video.download(output_path=directory_convert, filename=filename_video)
+        ys_audio = yt.streams.get_audio_only()
+        ys_audio.download(output_path=CONVERT_FOLDER, filename=filename_audio)
+        ys_video.download(output_path=CONVERT_FOLDER, filename=filename_video)
         print("Download completed!!")
 
-        video_stream = ffmpeg.input(path_audio)
-        audio_stream = ffmpeg.input(path_video)
+        # Get video and audio stream
+        video_stream = ffmpeg.input(path_file_audio)
+        audio_stream = ffmpeg.input(path_file_video)
 
-        print("ffmpeg ...")
-        ffmpeg.output(audio_stream, video_stream, path).overwrite_output().run()
+        # Generate new video with audio
+        print("ffmpeg start ...")
+        ffmpeg.output(audio_stream, video_stream, path_file).overwrite_output().run()
         print("ffmpeg end ...")
 
-        song = DownloadSong(title=title, directory=directory, filename=filename)
+        # Save and upload file
+        os.chmod(path_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        presigned_url = upload_file(f"videos/{filename}", BUCKET)
+
+        # Remove file
+        os.remove(path_file)
+
+        song = DownloadSong(title=title, directory=VIDEO_FOLDER, filename=filename, presigned_url=presigned_url)
         return song.toJSON()
 
     else:
+        # Get path file
+        path_file = os.path.join(AUDIO_FOLDER, secure_filename(filename))
+
         print("Downloading...")
-        ys_video.download(output_path=directory, filename=filename)
+        ys_video.download(output_path=AUDIO_FOLDER, filename=filename)
         print("Download completed!!")
 
-        song = DownloadSong(title=title, directory=directory, filename=filename)
+        # Save and upload file
+        os.chmod(path_file, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
+        presigned_url = upload_file(f"audios/{filename}", BUCKET)
+
+        # Remove file
+        os.remove(path_file)
+
+        song = DownloadSong(title=title, directory=AUDIO_FOLDER, filename=filename, presigned_url=presigned_url)
         return song.toJSON()
 
 
@@ -169,14 +193,11 @@ def convert_youtube_link(link, itag):
 @app.get('/')
 def index():
     local_timezone = datetime.utcnow().astimezone()
-
-    return jsonify({
-        "date": str(local_timezone),
-        "version": "1.0"
-    })
-    # song = convert_youtube_link()
-    # return render_template('download.html', author=song.author, title=song.title, filename=song.filename,
-    #                        directory=song.directory, thumbnail_url=song.thumbnail_url, time=song.time)
+    return render_template('index.html')
+    # return jsonify({
+    #     "date": str(local_timezone),
+    #     "version": "1.0"
+    # })
 
 
 @app.route('/search', methods=['POST'], strict_slashes=False)
