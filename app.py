@@ -164,6 +164,8 @@ def convert_youtube_link(link, itag):
         print(presigned_url)
 
         # Remove file
+        os.remove(path_file_audio)
+        os.remove(path_file_video)
         os.remove(path_file)
 
         song = DownloadSong(title=title, directory=VIDEO_FOLDER, filename=filename, presigned_url=presigned_url)
