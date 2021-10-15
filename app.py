@@ -1,16 +1,20 @@
 import math
 import os
-import stat
 from datetime import datetime
 
 import json
 from flask import Flask, jsonify, send_from_directory, request
+from flask_cors import CORS
+
 from s3_functions import upload_file
 from werkzeug.utils import secure_filename
 from pytube import YouTube
 import ffmpeg
 
 app = Flask(__name__)
+
+CORS(app)
+
 UPLOAD_FOLDER = "uploads"
 AUDIO_FOLDER = "audios"
 VIDEO_FOLDER = "videos"
@@ -43,6 +47,7 @@ class Stream:
         self.type = type
         self.only_audio = True if type == "audio" else False
         self.only_video = True if type == "video" else False
+        self.format = "MP4" if type == "video" else "MP3"
         self.filesize = filesize / 1000_000 if filesize is not None else 0
 
     def fromJSON(self):
@@ -58,6 +63,7 @@ class Stream:
 
 def get_filename(name: str):
     filename = name.replace(" ", "_")
+    filename = get_title_video(filename)
     return filename
 
 
@@ -65,7 +71,6 @@ def get_filename(name: str):
 def get_title_video(name: str):
     disallowed_characters = '\\|,/\\\\:*!¡*¿?<>@+~[]()'
     title_song = name.translate({ord(charecter): None for charecter in disallowed_characters})
-    title_song = get_filename(title_song)
     return " ".join(title_song.split())
 
 
@@ -89,6 +94,7 @@ def search_link_youtube(link=None):
 
     # Get params
     title = get_title_video(yt.title)
+    filename = get_filename(yt.title)
     author = yt.author
     thumbnail_url = yt.thumbnail_url
     video_time = get_time(yt.length)
@@ -112,6 +118,7 @@ def search_link_youtube(link=None):
 
     json_object = {
         "title": title,
+        "filename": filename,
         "author": author,
         "thumbnail_url": thumbnail_url,
         "time": video_time,
@@ -124,7 +131,8 @@ def search_link_youtube(link=None):
 def convert_youtube_link(link, itag):
     yt = YouTube(link)
 
-    title = get_title_video(yt.title)
+    title_youtube = get_title_video(yt.title)
+    title = get_filename(yt.title)
 
     # get stream
     ys_video = yt.streams.get_by_itag(itag)
@@ -168,7 +176,7 @@ def convert_youtube_link(link, itag):
         os.remove(path_file_video)
         os.remove(path_file)
 
-        song = DownloadSong(title=title, directory=VIDEO_FOLDER, filename=filename, presigned_url=presigned_url)
+        song = DownloadSong(title=title_youtube, directory=VIDEO_FOLDER, filename=filename, presigned_url=presigned_url)
         print(song)
         return song.toJSON()
 
