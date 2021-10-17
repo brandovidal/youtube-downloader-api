@@ -3,6 +3,8 @@ import os
 from datetime import datetime
 
 import json
+
+import requests as requests
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 
@@ -27,11 +29,11 @@ BUCKET = "youtube-downloader-data"
 # Class
 # -------------------------------
 class DownloadSong:
-    def __init__(self, title="", filename="", directory="/", presigned_url=None):
+    def __init__(self, title="", filename="", directory="/", url=None):
         self.title = title if title is not None else ""
         self.filename = filename
         self.directory = directory
-        self.presigned_url = presigned_url if presigned_url is not None else ""
+        self.url = url if url is not None else ""
 
     def fromJSON(self):
         return json.loads(self.toJSON())
@@ -46,8 +48,6 @@ class Stream:
         self.mime_type = mime_type
         self.res = res
         self.type = type
-        # self.only_audio = True if type == "audio" else False
-        # self.only_video = True if type == "video" else False
         self.format = "MP4" if type == "video" else "MP3"
         self.filesize = convertByteToMegaBytes(filesize) if filesize is not None else "0MB"
 
@@ -104,7 +104,10 @@ def listStreamTOJSON(youtube_streams):
 
 # search link youtube
 def search_link_youtube(link=None):
-    link = link if link is not None else 'https://www.youtube.com/watch?v=Znu024zo0nw'
+    if link is None:
+        return jsonify({
+            'result': 'Ingresar link de youtube'
+        })
     yt = YouTube(link)
 
     # Get params
@@ -114,25 +117,23 @@ def search_link_youtube(link=None):
     video_time = get_time(yt.length)
 
     # Video Stream
-    # Video and audio -> progressive = True
     youtube_streams_video = yt.streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
         'resolution').asc()
 
     # Audio Stream
     youtube_streams_audio = yt.streams.filter(type="audio", mime_type='audio/mp4').order_by('abr').asc()
 
-    youtube_streams = list(set(youtube_streams_video) | set(youtube_streams_audio))
-    youtube_streams = tuple(sorted(youtube_streams, key=lambda s: s.itag))
-    print("youtube_streams sorted >> ", youtube_streams)
-
-    list_streams = listStreamTOJSON(youtube_streams)
+    # get list of audios or videos
+    list_streams_videos = listStreamTOJSON(youtube_streams_video)
+    list_streams_audios = listStreamTOJSON(youtube_streams_audio)
 
     json_object = {
         "title": title,
         "author": author,
         "thumbnail_url": thumbnail_url,
         "time": video_time,
-        "streams": list_streams,
+        "videos": list_streams_videos,
+        "audios": list_streams_audios,
     }
     # print(json_object)
     return jsonify(json_object)
@@ -170,15 +171,15 @@ def merge_video_with_audio(yt, itag, title):
 
     # Save and upload file
     print("Save and upload file")
-    presigned_url = upload_file(f"videos/{filename}", BUCKET)
-    print(presigned_url)
+    url = upload_file(f"videos/{filename}", BUCKET)
+    print(url)
 
     # Remove file
-    # os.remove(path_file_audio)
-    # os.remove(path_file_video)
-    # os.remove(path_file)
+    os.remove(path_file_audio)
+    os.remove(path_file_video)
+    os.remove(path_file)
 
-    song = DownloadSong(title=title, directory=VIDEO_FOLDER, filename=filename, presigned_url=presigned_url)
+    song = DownloadSong(title=title, directory=VIDEO_FOLDER, filename=filename, url=url)
     print(song)
     return song.toJSON()
 
@@ -191,46 +192,53 @@ def download_video_or_audio(yt, itag, title):
     if youtube_streams_video.type == 'video':
         extension = ".mp4"
         type = "videos"
-        folder = VIDEO_FOLDER
+        directory = VIDEO_FOLDER
     else:
         extension = ".mp3"
         type = "audios"
-        folder = AUDIO_FOLDER
+        directory = AUDIO_FOLDER
 
     # Get filename
     filename = f"{title}{extension}"
 
     print("Downloading...")
-    youtube_streams_video.download(output_path=folder, filename=filename)
+    youtube_streams_video.download(output_path=directory, filename=filename)
     print("Download completed!!")
 
     # Save and upload file
     print("Save and upload file")
-    presigned_url = upload_file(f"{type}/{filename}", BUCKET)
-    print(presigned_url)
+    url = upload_file(f"{type}/{filename}", BUCKET)
 
     # Get path file
-    path_file = os.path.join(folder, secure_filename(filename))
+    path_file = os.path.join(directory, filename)
 
     # Remove file
-    # os.remove(path_file)
+    os.remove(path_file)
 
+    song = DownloadSong(title=title, directory=directory, filename=filename, url=url)
+
+    download(url=url)
     print("Downloaded")
-    song = DownloadSong(title=title, directory=AUDIO_FOLDER, filename=filename, presigned_url=presigned_url)
     return song.toJSON()
+
+
+def download(url):
+    print("URL >>>> ", url)
+    if url != "":
+        r = requests.get(url, allow_redirects=True)
+        print(r.headers.get('content-type'))
+        return jsonify({
+            "result": "descarga realizada",
+        })
+
+    return jsonify({
+        "error": "not exist video or audio file",
+    })
 
 
 def convert_youtube_link(link, itag):
     yt = YouTube(link)
     title = get_title_video(yt.title)
-
-    # # get stream
-    # youtube_streams_video = yt.streams.get_by_itag(itag)
-
-    # Starting download
-    # if youtube_streams_video.type == 'video':
-    #     return merge_video_with_audio(yt=yt, itag=itag, title=title)
-    # else:
     return download_video_or_audio(yt=yt, itag=itag, title=title)
 
 
@@ -260,7 +268,7 @@ def convert():
 
 
 @app.route('/download?<string:directory>&<string:filename>', methods=['GET', 'POST'])
-def download(directory, filename):
+def download_route(directory, filename):
     if directory != "" and filename != "":
         full_path = os.path.join(app.root_path, directory)
         return send_from_directory(directory=full_path, path=filename, as_attachment=True)
