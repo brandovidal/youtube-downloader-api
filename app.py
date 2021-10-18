@@ -106,26 +106,35 @@ def listStreamTOJSON(youtube_streams):
 def search_link_youtube(link=None):
     if link is None:
         return jsonify({
-            'result': 'Ingresar link de youtube'
+            'error': 'Ingresar link de youtube'
         })
     yt = YouTube(link)
+
+    # All Streams
+    streams = yt.streams
+
+    if len(streams) == 0:
+        return jsonify({
+            'error': 'No existen conversiones disponibles'
+        })
+
+
+    # Video Stream
+    youtube_streams_video = streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
+        'resolution').asc()
+
+    # Audio Stream
+    youtube_streams_audio = streams.filter(type="audio", mime_type='audio/mp4').order_by('abr').asc()
+
+    # get list of audios or videos
+    list_streams_videos = listStreamTOJSON(youtube_streams_video)
+    list_streams_audios = listStreamTOJSON(youtube_streams_audio)
 
     # Get params
     title = get_title_video(yt.title)
     author = yt.author
     thumbnail_url = yt.thumbnail_url
     video_time = get_time(yt.length)
-
-    # Video Stream
-    youtube_streams_video = yt.streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
-        'resolution').asc()
-
-    # Audio Stream
-    youtube_streams_audio = yt.streams.filter(type="audio", mime_type='audio/mp4').order_by('abr').asc()
-
-    # get list of audios or videos
-    list_streams_videos = listStreamTOJSON(youtube_streams_video)
-    list_streams_audios = listStreamTOJSON(youtube_streams_audio)
 
     json_object = {
         "title": title,
@@ -140,9 +149,12 @@ def search_link_youtube(link=None):
 
 
 def merge_video_with_audio(yt, itag, title):
+    # All Streams
+    streams = yt.streams
+
     # get streams
-    youtube_streams_video = yt.streams.get_by_itag(itag)
-    youtube_streams_audio = yt.streams.get_audio_only()
+    youtube_streams_video = streams.get_by_itag(itag)
+    youtube_streams_audio = streams.get_audio_only()
 
     # Get filename
     extension = ".mp4"
