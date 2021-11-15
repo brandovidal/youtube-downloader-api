@@ -1,5 +1,6 @@
 import math
 import os
+from Tools.scripts.serve import app
 from datetime import datetime
 
 import json
@@ -117,7 +118,6 @@ def search_link_youtube(link=None):
         return jsonify({
             'error': 'No existen conversiones disponibles'
         })
-
 
     # Video Stream
     youtube_streams_video = streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
@@ -257,7 +257,10 @@ def convert_youtube_link(link, itag):
 # -------------------------------
 # Routes
 # -------------------------------
-@app.get('/')
+BASE_URL = '/v1/api'
+
+
+@app.get(BASE_URL)
 def index():
     local_timezone = datetime.utcnow().astimezone()
     return jsonify({
@@ -266,20 +269,20 @@ def index():
     })
 
 
-@app.route('/search', methods=['POST'], strict_slashes=False)
+@app.route(f'{BASE_URL}/youtube/search', methods=['POST'], strict_slashes=False)
 def search():
     link = request.json['link']
     return search_link_youtube(link)
 
 
-@app.route('/convert', methods=['POST'], strict_slashes=False)
+@app.route(f'{BASE_URL}/youtube/convert', methods=['POST'], strict_slashes=False)
 def convert():
     link = request.json['link']
     itag = request.json['itag']
     return convert_youtube_link(link, itag)
 
 
-@app.route('/download?<string:directory>&<string:filename>', methods=['GET', 'POST'])
+@app.route(f'{BASE_URL}/youtube/download?<string:directory>&<string:filename>', methods=['GET', 'POST'])
 def download_route(directory, filename):
     if directory != "" and filename != "":
         full_path = os.path.join(app.root_path, directory)
