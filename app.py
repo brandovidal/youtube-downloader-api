@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 
 import json
+from urllib.error import HTTPError
 
 import requests as requests
 from flask import Flask, jsonify, send_from_directory, request
@@ -103,47 +104,55 @@ def listStreamTOJSON(youtube_streams):
 
 # search link youtube
 def search_link_youtube(link=None):
-    if link is None:
+    try:
+        if link is None:
+            return jsonify({
+                'error': 'Ingresar link de youtube'
+            })
+
+        yt = YouTube(link)
+
+        # All Streams
+        streams = yt.streams
+
+        if len(streams) == 0:
+            return jsonify({
+                'error': 'No existen conversiones disponibles'
+            })
+
+        # Video Stream
+        youtube_streams_video = streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
+            'resolution').asc()
+
+        # Audio Stream
+        youtube_streams_audio = streams.filter(type="audio", mime_type='audio/mp4').order_by('abr').asc()
+
+        # get list of audios or videos
+        list_streams_videos = listStreamTOJSON(youtube_streams_video)
+        list_streams_audios = listStreamTOJSON(youtube_streams_audio)
+
+        # Get params
+        title = get_title_video(yt.title)
+        author = yt.author
+        thumbnail_url = yt.thumbnail_url
+        video_time = get_time(yt.length)
+
+        json_object = {
+            "title": title,
+            "author": author,
+            "thumbnail_url": thumbnail_url,
+            "time": video_time,
+            "videos": list_streams_videos,
+            "audios": list_streams_audios,
+        }
+        # print(json_object)
+        return jsonify(json_object)
+
+    except HTTPError as e:
+        print("429 HTTP Error.")
         return jsonify({
-            'error': 'Ingresar link de youtube'
+            'error': '429 HTTP Error.'
         })
-    yt = YouTube(link)
-
-    # All Streams
-    streams = yt.streams
-
-    if len(streams) == 0:
-        return jsonify({
-            'error': 'No existen conversiones disponibles'
-        })
-
-    # Video Stream
-    youtube_streams_video = streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
-        'resolution').asc()
-
-    # Audio Stream
-    youtube_streams_audio = streams.filter(type="audio", mime_type='audio/mp4').order_by('abr').asc()
-
-    # get list of audios or videos
-    list_streams_videos = listStreamTOJSON(youtube_streams_video)
-    list_streams_audios = listStreamTOJSON(youtube_streams_audio)
-
-    # Get params
-    title = get_title_video(yt.title)
-    author = yt.author
-    thumbnail_url = yt.thumbnail_url
-    video_time = get_time(yt.length)
-
-    json_object = {
-        "title": title,
-        "author": author,
-        "thumbnail_url": thumbnail_url,
-        "time": video_time,
-        "videos": list_streams_videos,
-        "audios": list_streams_audios,
-    }
-    # print(json_object)
-    return jsonify(json_object)
 
 
 def merge_video_with_audio(yt, itag, title):
