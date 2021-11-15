@@ -1,6 +1,5 @@
 import math
 import os
-from Tools.scripts.serve import app
 from datetime import datetime
 
 import json
@@ -10,7 +9,6 @@ from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 
 from s3_functions import upload_file
-from werkzeug.utils import secure_filename
 
 from pytube import YouTube
 import ffmpeg
