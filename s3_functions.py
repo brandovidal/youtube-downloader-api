@@ -11,7 +11,7 @@ def upload_file(file_name, bucket):
         response = s3_client.upload_file(file_name, bucket, object_name)
 
         presigned_url = s3_client.generate_presigned_url('get_object', Params={'Bucket': bucket, 'Key': object_name},
-                                                         ExpiresIn=100)
+                                                         ExpiresIn=1000)
 
     except ClientError as e:
         pass
@@ -25,7 +25,7 @@ def get_urls(bucket):
         for item in s3_client.list_objects(Bucket=bucket)['Contents']:
             presigned_url = s3_client.generate_presigned_url('get_object',
                                                              Params={'Bucket': bucket, 'Key': item['Key']},
-                                                             ExpiresIn=300)
+                                                             ExpiresIn=1000)
             public_urls.append(presigned_url)
 
         print(public_urls)
