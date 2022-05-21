@@ -112,13 +112,14 @@ def search_link_youtube(link=None):
 
         yt = YouTube(link)
 
+        print('streams >>>>', yt.streams.all())
+        # print('streams >>>>', yt.streams)
+
         # All Streams
         streams = yt.streams
 
         if len(streams) == 0:
-            return jsonify({
-                'error': 'No existen conversiones disponibles'
-            })
+            return jsonify(message={'error': 'No existen conversiones disponibles'}, status=400)
 
         # Video Stream
         youtube_streams_video = streams.filter(type="video", mime_type='video/mp4', progressive=True).order_by(
@@ -146,13 +147,11 @@ def search_link_youtube(link=None):
             "audios": list_streams_audios,
         }
         # print(json_object)
-        return jsonify(json_object)
+        return jsonify(message=json_object, status=200)
 
     except HTTPError as e:
         print("429 HTTP Error.")
-        return jsonify({
-            'error': '429 HTTP Error.'
-        })
+        return jsonify(message={'error': '429 HTTP Error.'}, status=404)
 
 
 def merge_video_with_audio(yt, itag, title):
