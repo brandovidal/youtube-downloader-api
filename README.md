@@ -19,3 +19,8 @@ Install dependencies
 ```shell
 pip install -r requirements.txt
 ```
+Run API
+
+```shell
+gunicorn app:app --timeout 3600
+```
