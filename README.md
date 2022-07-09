@@ -2,9 +2,9 @@
 
 Using Flask, gunicorn, ffmpeg-python and pytube
 
-# Deploy URL
+# Deploy
 
-[Heroku URL](https://dracon-youtube-downloader-api.herokuapp.com)
+[API URL](https://youtube-downloader-api.onrender.com)
 
 ### Dependencies 📋
 

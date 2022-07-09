@@ -105,6 +105,7 @@ def listStreamTOJSON(youtube_streams):
 # search link youtube
 def search_link_youtube(link=None):
     try:
+        print('link >> ', link)
         if link is None:
             return jsonify({
                 'error': 'Ingresar link de youtube'
@@ -112,7 +113,7 @@ def search_link_youtube(link=None):
 
         yt = YouTube(link)
 
-        print('streams >>>>', yt.streams.all())
+        print('streams >>>>', yt.streams)
         # print('streams >>>>', yt.streams)
 
         # All Streams
